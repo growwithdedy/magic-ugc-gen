@@ -1,0 +1,8 @@
+{
+  "name": "Magic UGC Generator (Deploy) - FIN 10/3/2026",
+  "description": "AI-powered storyboard and affiliate content generator with image and audio synthesis.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
