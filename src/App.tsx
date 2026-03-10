@@ -8,7 +8,8 @@ import {
   MODEL_FOCUS_MODES,
   PRODUCT_FOCUS_MODES,
   STORYBOARD_TYPES,
-  FALLBACK_MODEL_SHOTS
+  FALLBACK_MODEL_SHOTS,
+  IMAGE_GENERATION_MODELS
 } from './constants';
 import {
   ProductImage,
@@ -90,6 +91,7 @@ export default function App() {
   const [sceneCount, setSceneCount] = useState(8);
   const [manualBackground, setManualBackground] = useState('');
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [selectedImageModel, setSelectedImageModel] = useState(IMAGE_GENERATION_MODELS[0].id);
 
   // Results
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -568,10 +570,22 @@ export default function App() {
         const shotName = shot.name;
         setLoadingMessage(`Menciptakan Scene... (${i + 1}/${shotsToGenerate.length}: ${shotName})`);
 
+        const realismPrompt = `
+          AESTHETIC OVERRIDE: ULTRA-REALISTIC PHOTOGRAPHY.
+          Enforce maximum physical realism and extreme high-definition clarity.
+          SKIN DETAILS: Reveal natural human micro-texture on all exposed skin (face, neck, hands, arms, legs). Include fine pores, slight natural imperfections, subtle unevenness, and realistic skin tone transitions.
+          CLARITY & SHARPNESS: Retain high edge definition. Do NOT inherit blur or softness from reference images. Imagine shot on a high-end DSLR with perfect focus.
+          PRESERVATION: Maintain the EXACT facial structure, identity, age, expression, and pose of the reference human without AI beautification or smoothing.
+          AVOID STRICTLY: Plastic skin, airbrushed look, beauty filters, digital over-sharpening, and AI artifacts. The final output MUST resemble an unedited RAW photograph of a real human.
+          Ultra realistic full-body skin texture, high clarity, sharp detail, natural human skin, no beauty filter.
+        `;
+
         const prompt = `
           OBJECTIVE: INSERT THE EXACT PRODUCT FROM THE INPUT IMAGE INTO THE NEW SCENE.
           SCENE CONTEXT: ${shot.prompt}
           BACKGROUND: ${background}
+          
+          ${realismPrompt}
         `;
 
         const payload = {
@@ -580,7 +594,7 @@ export default function App() {
         };
 
         const result = await callGenerativeApiWithRetry(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${selectedImageModel}:generateContent?key=${apiKey}`,
           payload
         );
 
@@ -627,10 +641,20 @@ export default function App() {
 
     try {
       const apiKey = getActiveApiKey();
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedImageModel}:generateContent?key=${apiKey}`;
 
       let payload;
       const background = selectedBackground === 'custom_bg' ? manualBackground.trim() : selectedBackground;
+
+      const realismPrompt = `
+          AESTHETIC OVERRIDE: ULTRA-REALISTIC PHOTOGRAPHY.
+          Enforce maximum physical realism and extreme high-definition clarity.
+          SKIN DETAILS: Reveal natural human micro-texture on all exposed skin (face, neck, hands, arms, legs). Include fine pores, slight natural imperfections, subtle unevenness, and realistic skin tone transitions.
+          CLARITY & SHARPNESS: Retain high edge definition. Do NOT inherit blur or softness from reference images. Imagine shot on a high-end DSLR with perfect focus.
+          PRESERVATION: Maintain the EXACT facial structure, identity, age, expression, and pose of the reference human without AI beautification or smoothing.
+          AVOID STRICTLY: Plastic skin, airbrushed look, beauty filters, digital over-sharpening, and AI artifacts. The final output MUST resemble an unedited RAW photograph of a real human.
+          Ultra realistic full-body skin texture, high clarity, sharp detail, natural human skin, no beauty filter.
+      `;
 
       if (!revisionText || revisionText.trim() === '') {
         const productImageParts = await Promise.all(productImages.map(p => fileToGenerativePart(p.file)));
@@ -639,14 +663,14 @@ export default function App() {
           allImageParts.unshift(await fileToGenerativePart(modelImage));
         }
 
-        const prompt = `RE-SHOOT MODE. BACKGROUND: ${background}. Angle: ${originalImage.originalPrompt || originalImage.angle}.`;
+        const prompt = `RE-SHOOT MODE. BACKGROUND: ${background}. Angle: ${originalImage.originalPrompt || originalImage.angle}. \n\n ${realismPrompt}`;
         payload = {
           contents: [{ parts: [{ text: prompt }, ...allImageParts] }],
           generationConfig: { responseModalities: ['IMAGE'] },
         };
       } else {
         const imageToRevisePart = await dataUrlToGenerativePart(originalImage.url);
-        const prompt = `PHOTO RETOUCHING. INSTRUKSI: "${revisionText}".`;
+        const prompt = `PHOTO RETOUCHING. INSTRUKSI: "${revisionText}". \n\n ${realismPrompt}`;
         payload = {
           contents: [{ parts: [{ text: prompt }, imageToRevisePart] }],
           generationConfig: { responseModalities: ['IMAGE'] },
@@ -702,6 +726,8 @@ export default function App() {
     setIsDetailsConfirmed(false);
     setSelectedDuration('30');
     setSceneCount(8);
+    // (Optional) reset model back to default, or keep previous choice
+    // setSelectedImageModel(IMAGE_GENERATION_MODELS[0].id);
   };
 
   const handleBackToSelection = () => {
@@ -1074,8 +1100,23 @@ export default function App() {
                 <button onClick={() => setShowGenerateModal(false)} className="absolute -top-6 -right-6 w-12 h-12 bg-[#FF5252] border-4 border-black text-black font-black text-2xl neo-shadow-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">X</button>
                 <div className="text-center">
                   <h3 className="text-3xl font-black uppercase mb-2 bg-[#FFDE59] inline-block px-4 py-1 border-2 border-black transform -rotate-2">FORMAT OUTPUT</h3>
-                  <p className="text-black font-bold mb-8 mt-4">Pilih rasio untuk {sceneCount} variasi otomatis Anda.</p>
-                  <div className="mb-10">
+                  <p className="text-black font-bold mb-6 mt-4">Pilih rasio dan model AI untuk {sceneCount} variasi otomatis Anda.</p>
+
+                  <div className="mb-6 text-left">
+                    <label className="text-sm font-black uppercase mb-2 block border-l-4 border-[#FF5252] pl-2">MODEL AI GAMBAR</label>
+                    <select
+                      value={selectedImageModel}
+                      onChange={e => { playClickSound(); setSelectedImageModel(e.target.value); }}
+                      className="w-full bg-white border-[4px] border-black text-black text-sm font-black py-4 px-4 focus:outline-none focus:bg-[#FFE066] neo-shadow-sm cursor-pointer"
+                    >
+                      {IMAGE_GENERATION_MODELS.map(model => (
+                        <option key={model.id} value={model.id}>{model.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mb-8">
+                    <label className="text-sm font-black uppercase mb-2 block text-left border-l-4 border-[#00E5FF] pl-2">RASIO VIDEO / FOTO</label>
                     <div className="grid grid-cols-3 gap-4">
                       {ASPECT_RATIOS.map(ratio => <button key={ratio} onClick={() => { playClickSound(); setAspectRatio(ratio); }} className={`py-6 px-2 text-xl font-black uppercase transition-all border-[4px] border-black ${aspectRatio === ratio ? 'bg-[#00E5FF] text-black neo-shadow transform -translate-y-1' : 'bg-white text-black hover:bg-gray-100'}`}>{ratio}</button>)}
                     </div>

@@ -16,6 +16,12 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: 'ko-KR', name: 'Korean' },
 ];
 
+export const IMAGE_GENERATION_MODELS = [
+  { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Default/Stable)' },
+  { id: 'gemini-3.0-flash-image', name: 'Gemini 3 Flash (Fast/Preview)' },
+  { id: 'gemini-3.0-pro-image', name: 'Gemini 3 Pro (High Quality/Preview)' }
+];
+
 export const TONE_OPTIONS: ToneOption[] = [
   { value: 'CHEERFUL', label: 'Ceria', prompt: 'Say cheerfully: ' },
   { value: 'SPOOKY', label: 'Mencekam', prompt: 'Say in a spooky whisper: ' },
@@ -53,38 +59,38 @@ export const PRODUCT_FOCUS_MODES = [
 ];
 
 export const STORYBOARD_TYPES: StoryboardType[] = [
-  { 
-    value: 'COMMERCIAL', 
-    label: 'Komersial / Iklan', 
-    icon: React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", width: "28", height: "28", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }, 
+  {
+    value: 'COMMERCIAL',
+    label: 'Komersial / Iklan',
+    icon: React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", width: "28", height: "28", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" },
       React.createElement('circle', { cx: "12", cy: "12", r: "10" }),
       React.createElement('path', { d: "m14.31 8 5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16 3.95 6.06M14.31 16H2.83m13.79-4-5.74 9.94" })
-    ), 
-    description: 'Studio profesional, pencahayaan sempurna.' 
+    ),
+    description: 'Studio profesional, pencahayaan sempurna.'
   },
-  { 
-    value: 'UGC', 
-    label: 'UGC / Creator', 
-    icon: React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", width: "28", height: "28", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }, 
+  {
+    value: 'UGC',
+    label: 'UGC / Creator',
+    icon: React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", width: "28", height: "28", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" },
       React.createElement('rect', { width: "14", height: "20", x: "5", y: "2", rx: "2" }),
       React.createElement('path', { d: "M12 18h.01" })
-    ), 
-    description: 'Gaya kreator, autentik, relatable.' 
+    ),
+    description: 'Gaya kreator, autentik, relatable.'
   },
-  { 
-    value: 'CINEMATIC', 
-    label: 'Cinematic Movie', 
-    icon: React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", width: "28", height: "28", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" }, 
+  {
+    value: 'CINEMATIC',
+    label: 'Cinematic Movie',
+    icon: React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", width: "28", height: "28", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round" },
       React.createElement('rect', { width: "18", height: "18", x: "3", y: "3", rx: "2" }),
       React.createElement('path', { d: "M7 3v18M17 3v18M3 7.5h4M3 12h4M3 16.5h4M17 7.5h4M17 12h4M17 16.5h4" })
-    ), 
-    description: 'Layar lebar, dramatis, color grading film.' 
+    ),
+    description: 'Layar lebar, dramatis, color grading film.'
   },
 ];
 
 export const FALLBACK_MODEL_SHOTS = [
-  { 
-    name: 'Classic Product Interaction', 
+  {
+    name: 'Classic Product Interaction',
     prompt: 'Medium shot. Model holding the product naturally, looking at it with a slight smile. Focus on the interaction between hand and product.',
     videoPrompt: 'Cinematic medium shot, model holding product, examining it gently, soft lighting, 4k',
     script: 'Lihat produk luar biasa ini, sangat cocok untuk gaya Anda.'
