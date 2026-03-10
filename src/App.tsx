@@ -72,7 +72,7 @@ export default function App() {
     }
   };
 
-  const getActiveApiKey = () => geminiApiKey || process.env.GEMINI_API_KEY || '';
+  const getActiveApiKey = () => geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
   const [modelImage, setModelImage] = useState<File | null>(null);
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
