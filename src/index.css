@@ -17,7 +17,6 @@
   .neo-shadow {
     box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1);
   }
-
   .neo-shadow-sm {
     box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 1);
   }
@@ -28,11 +27,9 @@
     @apply border-4 border-black;
     box-shadow: 8px 8px 0px 0px rgba(0, 0, 0, 1);
   }
-
   .neo-btn {
     @apply transition-all active:translate-x-[4px] active:translate-y-[4px] active:shadow-none;
   }
-
   .neo-btn:hover {
     @apply -translate-x-[2px] -translate-y-[2px];
     box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1);
@@ -42,7 +39,6 @@
 .animate-fade-in-up {
   animation: fadeInUp 0.5s ease-out forwards;
 }
-
 .animate-scale-in {
   animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
@@ -52,63 +48,25 @@
     opacity: 0;
     transform: translateY(20px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-
 @keyframes scaleIn {
   from {
     opacity: 0;
     transform: scale(0.9);
   }
-
   to {
     opacity: 1;
     transform: scale(1);
   }
 }
 
-@keyframes bounceShort {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.animate-bounce-short {
-  animation: bounceShort 1s ease-in-out infinite;
-}
-
-@keyframes pulseGlow {
-
-  0%,
-  100% {
-    background-color: #FFDE59;
-    box-shadow: 0 0 0px rgba(255, 222, 89, 0);
-  }
-
-  50% {
-    background-color: #FFF176;
-    box-shadow: 0 0 20px rgba(255, 222, 89, 0.8);
-  }
-}
-
-.animate-pulse-glow {
-  animation: pulseGlow 1.5s ease-in-out infinite;
-}
-
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
-
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
