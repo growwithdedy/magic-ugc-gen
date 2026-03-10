@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { UserData, useAuth } from '../../contexts/AuthContext';
 import { playClickSound } from '../../utils/helpers';
@@ -72,6 +72,25 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
     };
 
+    const deleteUser = async (uid: string) => {
+        playClickSound();
+        if (!window.confirm("Apakah Anda yakin ingin MENGHAPUS user ini permanen dari database?")) return;
+
+        try {
+            const userRef = doc(db, 'users', uid);
+            await deleteDoc(userRef);
+            // Update local state
+            setUsers(prev => prev.filter(u => u.uid !== uid));
+        } catch (err) {
+            console.error("Failed to delete user:", err);
+            alert("Gagal menghapus user. Periksa pengaturan database.");
+        }
+    }
+
+    const unapprovedCount = users.filter(u => u.status === 'pending').length;
+    // Consider online if active in the last 5 minutes (300,000 ms)
+    const onlineCount = users.filter(u => u.lastActive && (Date.now() - u.lastActive) < 300000).length;
+
     return (
         <div className="fixed inset-0 z-50 bg-[#FDFBF7] overflow-y-auto">
             <div className="max-w-6xl mx-auto px-4 py-8">
@@ -85,13 +104,27 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase mt-2">USER PANEL</h1>
                     </div>
 
-                    <div className="mt-4 md:mt-0 flex items-center gap-4">
-                        <button onClick={fetchUsers} disabled={loading} className="font-black text-black uppercase border-b-2 border-black hover:bg-[#FFDE59] px-2 py-1 transition-colors">
-                            SEGARKAN DATA
-                        </button>
-                        <button onClick={onClose} className="neo-btn bg-[#FF5252] text-white font-black uppercase px-6 py-3 border-4 border-black neo-shadow-sm hover:translate-y-1 transition-transform">
-                            TUTUP PANEL
-                        </button>
+                    <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">
+                        <div className="flex gap-4">
+                            <div className="bg-[#FFDE59] border-2 border-black px-3 py-1 neo-shadow-sm text-sm font-bold">
+                                Offline/Total: {users.length - onlineCount}/{users.length}
+                            </div>
+                            <div className="bg-[#00E676] border-2 border-black px-3 py-1 neo-shadow-sm text-sm font-bold">
+                                Online: {onlineCount}
+                            </div>
+                            <div className="bg-[#FF5252] text-white border-2 border-black px-3 py-1 neo-shadow-sm text-sm font-bold">
+                                Belum Approve: {unapprovedCount}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 mt-2">
+                            <button onClick={fetchUsers} disabled={loading} className="font-black text-black uppercase border-b-2 border-black hover:bg-[#FFDE59] px-2 py-1 transition-colors">
+                                SEGARKAN DATA
+                            </button>
+                            <button onClick={onClose} className="neo-btn bg-[#FF5252] text-white font-black uppercase px-6 py-3 border-4 border-black neo-shadow-sm hover:translate-y-1 transition-transform">
+                                TUTUP PANEL
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -149,12 +182,21 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                             </td>
                                             <td className="p-4 text-center">
                                                 {u.role !== 'admin' && (
-                                                    <button
-                                                        onClick={() => toggleStatus(u.uid, u.status)}
-                                                        className={`neo-btn text-xs font-black uppercase px-4 py-2 border-2 border-black neo-shadow-sm w-full ${u.status === 'approved' ? 'bg-white hover:bg-red-100 text-red-600' : 'bg-[#00E676] text-black hover:bg-green-400'}`}
-                                                    >
-                                                        {u.status === 'approved' ? 'Cabut Akses' : 'Setujui Akses'}
-                                                    </button>
+                                                    <div className="flex gap-2 justify-center">
+                                                        <button
+                                                            onClick={() => toggleStatus(u.uid, u.status)}
+                                                            className={`neo-btn text-xs font-black uppercase px-4 py-2 border-2 border-black neo-shadow-sm ${u.status === 'approved' ? 'bg-white hover:bg-red-100 text-red-600' : 'bg-[#00E676] text-black hover:bg-green-400'}`}
+                                                        >
+                                                            {u.status === 'approved' ? 'Cabut Akses' : 'Setujui Akses'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => deleteUser(u.uid)}
+                                                            className="neo-btn bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase px-3 py-2 border-2 border-black neo-shadow-sm"
+                                                            title="Hapus User"
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    </div>
                                                 )}
                                                 {u.role === 'admin' && (
                                                     <span className="text-xs font-black text-gray-400 uppercase italic">Admin Utama</span>

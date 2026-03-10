@@ -10,6 +10,7 @@ import {
     doc,
     getDoc,
     setDoc,
+    updateDoc,
     serverTimestamp
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
@@ -22,6 +23,7 @@ export interface UserData {
     role: 'user' | 'admin';
     status: 'pending' | 'approved';
     geminiApiKey?: string;
+    lastActive?: number;
     createdAt: any;
 }
 
@@ -49,8 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const userRef = doc(db, 'users', currentUser.uid);
                 const userSnap = await getDoc(userRef);
 
+                const now = Date.now();
+
                 if (userSnap.exists()) {
                     setUserData(userSnap.data() as UserData);
+                    // Update lastActive when they login/auth state changes
+                    updateDoc(userRef, { lastActive: now }).catch(e => console.error("Error updating lastActive", e));
                 } else {
                     // New user, create document with pending status
                     const newUserData: Partial<UserData> = {
@@ -60,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         photoURL: currentUser.photoURL || '',
                         role: 'user', // Default role
                         status: 'pending', // Default status, requires admin approval
+                        lastActive: now,
                         createdAt: serverTimestamp(),
                     };
 
@@ -74,7 +81,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
         });
 
-        return () => unsubscribe();
+        // Set up periodic updating of lastActive (e.g., every 1 minute)
+        const intervalId = setInterval(() => {
+            if (auth.currentUser) {
+                const userRef = doc(db, 'users', auth.currentUser.uid);
+                updateDoc(userRef, { lastActive: Date.now() }).catch(e => console.warn('Failed to update online status', e));
+            }
+        }, 60000); // 1 minute
+
+        return () => {
+            unsubscribe();
+            clearInterval(intervalId);
+        };
     }, []);
 
     const loginWithGoogle = async () => {
