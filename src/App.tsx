@@ -184,7 +184,7 @@ export default function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const apiKey = getActiveApiKey();
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       const prompt = "Identifikasi produk dalam gambar ini. Berikan nama yang singkat, detail, dan deskriptif dalam Bahasa Indonesia (maksimal 4 kata, contoh: 'Kemeja Flanel Coklat', 'Botol Serum Vitamin C'). Jawab HANYA dengan nama produk.";
       const payload = { contents: [{ parts: [{ text: prompt }, imagePart] }] };
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -324,7 +324,7 @@ export default function App() {
       }
 
       const apiKey = getActiveApiKey();
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const systemPrompt = `Anda adalah seorang art director yang SANGAT PAHAM ESTETIKA LOKAL INDONESIA. 
       Tugas Anda adalah menganalisis foto model/produk, lalu memberikan 7 rekomendasi latar (background) yang bernuansa INDONESIA (lokal) dan kekinian.
@@ -347,7 +347,7 @@ export default function App() {
       };
 
       const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+      if (!response.ok) throw new Error(`API Error: ${response.statusText} `);
 
       const result = await response.json();
       const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -379,8 +379,7 @@ export default function App() {
       const namesToUse = productNames || "Produk Fashion Premium";
 
       const apiKey = getActiveApiKey();
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       const languageName = LANGUAGE_OPTIONS.find(l => l.code === selectedLanguage)?.name || 'Bahasa Indonesia';
 
       let prompt = `
@@ -462,8 +461,7 @@ export default function App() {
     setLoadingMessage(`Merancang Storyboard (${count} Scenes)...`);
     try {
       const apiKey = getActiveApiKey();
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
       let contextPrompt = "";
       let stylePrompt = "";
 
