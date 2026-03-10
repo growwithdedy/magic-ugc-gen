@@ -16,12 +16,6 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: 'ko-KR', name: 'Korean' },
 ];
 
-export const IMAGE_GENERATION_MODELS = [
-  { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Default/Stable)' },
-  { id: 'gemini-3.0-flash-image', name: 'Gemini 3 Flash (Fast/Preview)' },
-  { id: 'gemini-3.0-pro-image', name: 'Gemini 3 Pro (High Quality/Preview)' }
-];
-
 export const TONE_OPTIONS: ToneOption[] = [
   { value: 'CHEERFUL', label: 'Ceria', prompt: 'Say cheerfully: ' },
   { value: 'SPOOKY', label: 'Mencekam', prompt: 'Say in a spooky whisper: ' },
