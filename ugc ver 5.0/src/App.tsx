@@ -1,117 +1,99 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Instagram, ExternalLink, Key, Shield, LogOut, Eye, EyeOff, HelpCircle, X } from 'lucide-react';
-import {
-  VOICE_OPTIONS,
-  LANGUAGE_OPTIONS,
-  TONE_OPTIONS,
-  SCENE_COUNT_OPTIONS,
-  MODEL_FOCUS_MODES,
-  PRODUCT_FOCUS_MODES,
+import { 
+  VOICE_OPTIONS, 
+  LANGUAGE_OPTIONS, 
+  TONE_OPTIONS, 
+  SCENE_COUNT_OPTIONS, 
+  MODEL_FOCUS_MODES, 
+  PRODUCT_FOCUS_MODES, 
   STORYBOARD_TYPES,
   FALLBACK_MODEL_SHOTS,
   REALISM_PROMPT,
   RESOLUTION_OPTIONS
 } from './constants';
-import {
-  ProductImage,
-  GeneratedImage,
-  ShotType
+import { 
+  ProductImage, 
+  GeneratedImage, 
+  ShotType 
 } from './types';
-import {
-  fileToGenerativePart,
-  dataUrlToGenerativePart,
-  adjustImageAspectRatio,
-  playClickSound,
-  pcmToWav,
-  callGenerativeApiWithRetry
+import { 
+  fileToGenerativePart, 
+  dataUrlToGenerativePart, 
+  adjustImageAspectRatio, 
+  playClickSound, 
+  pcmToWav, 
+  callGenerativeApiWithRetry 
 } from './utils/helpers';
-import {
-  CustomButton,
-  UploadArea,
-  AssetThumbnail,
-  AddMoreProducts
+import { 
+  CustomButton, 
+  UploadArea, 
+  AssetThumbnail, 
+  AddMoreProducts 
 } from './components/UI';
 import { ImageCard } from './components/ImageCard';
-import { MODELS, getAI } from './services/geminiService';
-import { useAuth } from './contexts/AuthContext';
-import { LoginScreen } from './components/Auth/LoginScreen';
-import { WaitingApprovalScreen } from './components/Auth/WaitingApprovalScreen';
-import AdminPanel from './components/Admin/AdminPanel';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from './lib/firebase';
-import { Key, Eye, EyeOff, Lightbulb } from 'lucide-react';
+import { ai, MODELS, getAI } from './services/geminiService';
 
 export default function App() {
   // State Management
-  const [appState, setAppState] = useState('intro');
-  const [generationMode, setGenerationMode] = useState<string | null>(null);
+  const [appState, setAppState] = useState('intro'); 
+  const [generationMode, setGenerationMode] = useState<string | null>(null); 
   const [modelImage, setModelImage] = useState<File | null>(null);
-  const [productImages, setProductImages] = useState<ProductImage[]>([]);
+  const [productImages, setProductImages] = useState<ProductImage[]>([]); 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
-  const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<number | null>(null); 
   const [apiError, setApiError] = useState('');
-  const [isDetailsConfirmed, setIsDetailsConfirmed] = useState(false);
-
+  const [isDetailsConfirmed, setIsDetailsConfirmed] = useState(false); 
+  
   // Recommendations and selections
   const [backgroundRecommendations, setBackgroundRecommendations] = useState<string[]>([]);
   const [selectedBackground, setSelectedBackground] = useState('');
-  const [focusMode, setFocusMode] = useState(MODEL_FOCUS_MODES[0].value);
-  const [storyboardType, setStoryboardType] = useState('COMMERCIAL');
-  const [aspectRatio, setAspectRatio] = useState('9:16');
+  const [focusMode, setFocusMode] = useState(MODEL_FOCUS_MODES[0].value); 
+  const [storyboardType, setStoryboardType] = useState('COMMERCIAL'); 
+  const [aspectRatio, setAspectRatio] = useState('9:16'); 
   const [selectedResolution, setSelectedResolution] = useState<"1K" | "2K" | "4K">('1K');
-  const [sceneCount, setSceneCount] = useState(8);
+  const [sceneCount, setSceneCount] = useState(8); 
   const [manualBackground, setManualBackground] = useState('');
+  const [showGenerateModal, setShowGenerateModal] = useState(false); 
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [customApiKey, setCustomApiKey] = useState(localStorage.getItem('GEMINI_CUSTOM_API_KEY') || '');
   const [showApiKey, setShowApiKey] = useState(false);
-
-  // Auth & Admin States
-  const { user, userData, loading, logout } = useAuth();
-  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
-
+  
   // Results
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
 
   // --- AUDIO GENERATOR STATE ---
   const [commercialScript, setCommercialScript] = useState('');
-  const [selectedVoiceName, setSelectedVoiceName] = useState(VOICE_OPTIONS[0].name);
-  const [selectedLanguage, setSelectedLanguage] = useState(LANGUAGE_OPTIONS[0].code);
-  const [selectedTone, setSelectedTone] = useState(TONE_OPTIONS[0].value);
-  const [selectedDuration, setSelectedDuration] = useState('30');
+  const [selectedVoiceName, setSelectedVoiceName] = useState(VOICE_OPTIONS[0].name); 
+  const [selectedLanguage, setSelectedLanguage] = useState(LANGUAGE_OPTIONS[0].code); 
+  const [selectedTone, setSelectedTone] = useState(TONE_OPTIONS[0].value); 
+  const [selectedDuration, setSelectedDuration] = useState('30'); 
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState('');
-
+  
   // Jingle Audio State
   const [introAudioUrl, setIntroAudioUrl] = useState<string | null>(null);
   const [showVideoOptions, setShowVideoOptions] = useState(false);
 
   const ASPECT_RATIOS = ['9:16', '1:1', '16:9'];
-
-  const saveGeminiApiKey = async (key: string) => {
-    setIsSavingApiKey(true);
-    try {
-      localStorage.setItem('GEMINI_CUSTOM_API_KEY', key);
-      if (user) {
-        await updateDoc(doc(db, 'users', user.uid), {
-          geminiApiKey: key
-        });
-      }
-      setCustomApiKey(key);
-    } catch (error) {
-      console.error("Error saving API key:", error);
-    } finally {
-      setIsSavingApiKey(false);
-    }
-  };
-
+  
   const checkApiKey = async () => {
-    if (!customApiKey) {
-      setShowApiKeyModal(true);
-      return false;
+    // Check localStorage first
+    const customKey = localStorage.getItem('GEMINI_CUSTOM_API_KEY');
+    if (customKey && customKey.trim().length > 0) return true;
+
+    // Fallback to platform key
+    // @ts-ignore
+    if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+      // @ts-ignore
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        setShowApiKeyModal(true);
+        return false;
+      }
     }
     return true;
   };
@@ -127,18 +109,17 @@ export default function App() {
       setFocusMode(PRODUCT_FOCUS_MODES[0].value);
     }
   }, [generationMode]);
-
+  
   useEffect(() => {
     const preFetchIntroAudio = async () => {
       try {
         const text = "Welcome to Magic UGC Generator! Let's create magic.";
-        const voiceName = "Puck";
-
-        const genAI = getAI(customApiKey);
-        const model = genAI.getGenerativeModel({ model: MODELS.TTS });
-        const response = await model.generateContent({
+        const voiceName = "Puck"; 
+        
+        const response = await ai.models.generateContent({
+          model: MODELS.TTS,
           contents: [{ parts: [{ text: text }] }],
-          generationConfig: {
+          config: {
             responseModalities: ["AUDIO"],
             speechConfig: {
               voiceConfig: {
@@ -149,9 +130,9 @@ export default function App() {
             }
           }
         });
-
-        const pcmData = response.response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
+    
+        const pcmData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        
         if (pcmData) {
           const wavUrl = pcmToWav(pcmData);
           setIntroAudioUrl(wavUrl);
@@ -164,35 +145,8 @@ export default function App() {
     if (appState === 'intro') {
       preFetchIntroAudio();
     }
-  }, [appState, customApiKey]);
-
-  // Sync API Key from Firestore when userData changes
-  useEffect(() => {
-    if (userData?.geminiApiKey && !customApiKey) {
-      setCustomApiKey(userData.geminiApiKey);
-      localStorage.setItem('GEMINI_CUSTOM_API_KEY', userData.geminiApiKey);
-    }
-  }, [userData, customApiKey]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center font-sans">
-        <div className="bg-[#FFE600] border-4 border-black p-8 neo-shadow text-center">
-          <h2 className="text-2xl font-black uppercase tracking-wider mb-4 text-black animate-pulse">Memuat...</h2>
-          <div className="w-16 h-16 border-8 border-black border-t-[#00E5FF] rounded-full animate-spin mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <LoginScreen />;
-  }
-
-  if (userData?.status === 'pending') {
-    return <WaitingApprovalScreen />;
-  }
-
+  }, [appState]);
+  
   const handleStartApp = () => {
     playClickSound();
     if (introAudioUrl) {
@@ -206,13 +160,11 @@ export default function App() {
     try {
       const imagePart = await fileToGenerativePart(file);
       const prompt = "Identifikasi produk dalam gambar ini. Berikan nama yang singkat, detail, dan deskriptif dalam Bahasa Indonesia (maksimal 4 kata, contoh: 'Kemeja Flanel Coklat', 'Botol Serum Vitamin C'). Jawab HANYA dengan nama produk.";
-
-      const genAI = getAI(customApiKey);
-      const model = genAI.getGenerativeModel({ model: MODELS.TEXT });
-      const response = await model.generateContent({
+      const response = await ai.models.generateContent({
+        model: MODELS.TEXT,
         contents: [{ parts: [{ text: prompt }, imagePart] }]
       });
-      return response.response.text()?.trim() || file.name;
+      return response.text?.trim() || file.name;
     } catch (error) {
       console.error("Product detection failed for one image:", error);
       return file.name;
@@ -229,31 +181,31 @@ export default function App() {
   }, [appState]);
 
   const onProductDrop = useCallback((acceptedFiles: File[]) => {
-    const newProducts = acceptedFiles.map(file => ({
+    const newProducts = acceptedFiles.map(file => ({ 
       id: Math.random().toString(36).substr(2, 9),
-      file,
-      name: 'Mendeteksi...'
+      file, 
+      name: 'Mendeteksi...' 
     }));
 
     setProductImages(prev => {
       const updatedProducts = [...prev, ...newProducts].slice(0, 2);
-      setIsDetailsConfirmed(false);
+      setIsDetailsConfirmed(false); 
       return updatedProducts;
     });
 
     newProducts.forEach(async (product) => {
       const detectedName = await detectProductName(product.file);
-      setProductImages(prev => prev.map(p =>
+      setProductImages(prev => prev.map(p => 
         p.id === product.id ? { ...p, name: detectedName } : p
       ));
     });
 
   }, [appState]);
-
+  
   const removeProductImage = (indexToRemove: number) => {
     setProductImages(prev => {
       const newImages = prev.filter((_, index) => index !== indexToRemove);
-      setIsDetailsConfirmed(false);
+      setIsDetailsConfirmed(false); 
       if (appState === 'selecting') {
         if (newImages.length === 0 || (generationMode === 'model' && !modelImage)) {
           handleReset();
@@ -264,10 +216,10 @@ export default function App() {
       return newImages;
     });
   };
-
+  
   const removeModelImage = () => {
     setModelImage(null);
-    handleReset();
+    handleReset(); 
   }
 
   const handleReplaceModel = (file: File) => {
@@ -278,8 +230,8 @@ export default function App() {
   };
 
   const handleReplaceProduct = async (index: number, file: File) => {
-    setIsDetailsConfirmed(false);
-
+    setIsDetailsConfirmed(false); 
+    
     setProductImages(prev => {
       const newImages = [...prev];
       newImages[index] = { ...newImages[index], file, name: 'Mendeteksi...' };
@@ -287,7 +239,7 @@ export default function App() {
     });
 
     const detectedName = await detectProductName(file);
-
+    
     setProductImages(prev => {
       const newImages = [...prev];
       if (newImages[index]) {
@@ -307,7 +259,7 @@ export default function App() {
       newImages[index] = { ...newImages[index], name: newName };
       return newImages;
     });
-    setIsDetailsConfirmed(false);
+    setIsDetailsConfirmed(false); 
   };
 
   const handleConfirmDetails = () => {
@@ -325,7 +277,7 @@ export default function App() {
       setApiError("Mode Model membutuhkan foto model.");
       return;
     }
-
+    
     setIsLoading(true);
     setLoadingMessage(isReload ? 'Memuat ulang rekomendasi...' : 'Mendeteksi produk...');
     setApiError('');
@@ -339,12 +291,12 @@ export default function App() {
 
       if (generationMode === 'model' && modelImage) {
         const modelImagePart = await fileToGenerativePart(modelImage);
-        imageParts.unshift(modelImagePart);
+        imageParts.unshift(modelImagePart); 
         prompt = `Analisis model dan produk (${productNames.join(', ')}) ini, lalu berikan rekomendasi latar.`;
       } else if (generationMode === 'product') {
         prompt = `Analisis produk-produk ini (${productNames.join(', ')}), dan berikan rekomendasi 7 latar belakang E-commerce yang paling cocok untuk menampilkan produk secara visual yang bersih and menarik, tanpa melibatkan model manusia.`;
       }
-
+      
       const systemPrompt = `Anda adalah seorang art director yang SANGAT PAHAM ESTETIKA LOKAL INDONESIA. 
       Tugas Anda adalah menganalisis foto model/produk, lalu memberikan 7 rekomendasi latar (background) yang bernuansa INDONESIA (lokal) dan kekinian.
       
@@ -384,18 +336,18 @@ export default function App() {
       setIsLoading(false);
     }
   };
-
+  
   const handleGenerateCommercialScript = async () => {
     playClickSound();
     setIsGeneratingScript(true);
     setAudioError('');
-
+    
     try {
       const productNames = productImages.map(p => p.name).join(' dan ');
       const namesToUse = productNames || "Produk Fashion Premium";
 
       const languageName = LANGUAGE_OPTIONS.find(l => l.code === selectedLanguage)?.name || 'Bahasa Indonesia';
-
+      
       let prompt = `
       Bertindaklah sebagai copywriter video pendek (TikTok/Reels). Buatkan naskah voiceover yang SANGAT NATURAL, LUWES, dan SEPERTI ORANG NGOBROL untuk produk: "${namesToUse}".
       
@@ -408,7 +360,7 @@ export default function App() {
         model: MODELS.TEXT,
         contents: [{ parts: [{ text: prompt }] }]
       });
-
+      
       const script = response.text?.trim();
       if (script) {
         setCommercialScript(script);
@@ -430,7 +382,7 @@ export default function App() {
     setIsGeneratingAudio(true);
     setAudioError('');
     setAudioUrl(null);
-
+    
     const tonePrefix = TONE_OPTIONS.find(t => t.value === selectedTone)?.prompt || '';
     const finalScript = tonePrefix + commercialScript;
 
@@ -452,7 +404,7 @@ export default function App() {
 
       const pcmData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
       if (pcmData) {
-        const wavUrl = pcmToWav(pcmData);
+        const wavUrl = pcmToWav(pcmData); 
         setAudioUrl(wavUrl);
       } else {
         throw new Error("Gagal menghasilkan audio.");
@@ -515,10 +467,10 @@ export default function App() {
           }
         }
       });
-
+      
       const responseText = response.text;
       if (!responseText) throw new Error("Gagal membuat storyboard dinamis.");
-
+      
       const parsed = JSON.parse(responseText);
       return parsed.shots || FALLBACK_MODEL_SHOTS;
 
@@ -530,20 +482,20 @@ export default function App() {
 
   const handleGenerate = async () => {
     playClickSound();
-
+    
     // Check for API Key before proceeding
     const hasKey = await checkApiKey();
     if (!hasKey) return;
 
-    setShowGenerateModal(false);
+    setShowGenerateModal(false); 
 
     const background = selectedBackground === 'custom_bg' ? manualBackground.trim() : selectedBackground;
-
+    
     if (productImages.length === 0 || !background) {
       setApiError("Harap unggah minimal 1 produk dan pilih latar.");
       return;
     }
-
+    
     if (generationMode === 'model' && !modelImage) {
       setApiError("Mode Model membutuhkan foto model.");
       return;
@@ -560,17 +512,17 @@ export default function App() {
     try {
       const productImageParts = await Promise.all(productImages.map(p => fileToGenerativePart(p.file)));
       let allImageParts = [...productImageParts];
-
+      
       let currentShotTypes: ShotType[] = [];
-
+      
       if (generationMode === 'model' && modelImage) {
         const modelImagePart = await fileToGenerativePart(modelImage);
-        allImageParts.unshift(modelImagePart);
+        allImageParts.unshift(modelImagePart); 
         currentShotTypes = await generateDynamicShots(productImageParts, 'model', storyboardType, sceneCount);
       } else {
         currentShotTypes = await generateDynamicShots(productImageParts, 'product', storyboardType, sceneCount);
       }
-
+      
       const generatedResults: GeneratedImage[] = [];
       const shotsToGenerate = currentShotTypes.slice(0, sceneCount);
 
@@ -585,12 +537,12 @@ export default function App() {
           BACKGROUND: ${background}
           ${generationMode === 'model' ? REALISM_PROMPT : ''}
         `;
-
+        
         const aiInstance = getAI();
         const response = await aiInstance.models.generateContent({
           model: MODELS.IMAGE,
           contents: [{ parts: [{ text: prompt }, ...allImageParts] }],
-          config: {
+          config: { 
             responseModalities: ['IMAGE'],
             imageConfig: {
               aspectRatio: aspectRatio as any,
@@ -598,23 +550,23 @@ export default function App() {
             }
           },
         });
-
+        
         const base64Data = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
 
         if (base64Data) {
           const processedUrl = await adjustImageAspectRatio(base64Data, aspectRatio);
           const videoRatioText = aspectRatio === '9:16' ? '--ar 9:16' : (aspectRatio === '16:9' ? '--ar 16:9' : '--ar 1:1');
-
+          
           let videoPromptText = shot.videoPrompt;
           if (generationMode === 'product') videoPromptText += ", NO human faces";
 
-          generatedResults.push({
-            id: Date.now() + i,
-            url: processedUrl,
+          generatedResults.push({ 
+            id: Date.now() + i, 
+            url: processedUrl, 
             angle: shotName,
             videoPrompt: `create video ${videoPromptText}, ${videoRatioText}`,
             script: shot.script,
-            originalPrompt: shot.prompt
+            originalPrompt: shot.prompt 
           });
         }
       }
@@ -635,11 +587,11 @@ export default function App() {
 
   const handleRegenerate = async (imageId: number, revisionText: string) => {
     const originalImage = generatedImages.find(img => img.id === imageId);
-    if (!originalImage) return;
-
-    setRegeneratingId(imageId);
+    if (!originalImage) return; 
+  
+    setRegeneratingId(imageId); 
     setApiError('');
-
+    
     // Check for API Key before proceeding
     const hasKey = await checkApiKey();
     if (!hasKey) {
@@ -663,7 +615,7 @@ export default function App() {
         response = await aiInstance.models.generateContent({
           model: MODELS.IMAGE,
           contents: [{ parts: [{ text: prompt }, ...allImageParts] }],
-          config: {
+          config: { 
             responseModalities: ['IMAGE'],
             imageConfig: {
               aspectRatio: aspectRatio as any,
@@ -677,7 +629,7 @@ export default function App() {
         response = await aiInstance.models.generateContent({
           model: MODELS.IMAGE,
           contents: [{ parts: [{ text: prompt }, imageToRevisePart] }],
-          config: {
+          config: { 
             responseModalities: ['IMAGE'],
             imageConfig: {
               aspectRatio: aspectRatio as any,
@@ -686,28 +638,28 @@ export default function App() {
           },
         });
       }
-
+  
       const base64Data = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-
+  
       if (base64Data) {
         const processedUrl = await adjustImageAspectRatio(base64Data, aspectRatio);
-        const newImage: GeneratedImage = {
-          id: Date.now(),
-          url: processedUrl,
+        const newImage: GeneratedImage = { 
+          id: Date.now(), 
+          url: processedUrl, 
           angle: originalImage.angle,
           videoPrompt: originalImage.videoPrompt,
           customDetail: revisionText ? revisionText.trim() : undefined,
           script: originalImage.script,
-          originalPrompt: originalImage.originalPrompt
+          originalPrompt: originalImage.originalPrompt 
         };
         setGeneratedImages(prev => prev.map(img => img.id === imageId ? newImage : img));
       }
-
+  
     } catch (error: any) {
       console.error("Image revision failed:", error);
       alert(error.message || 'Gagal menerapkan revisi.');
     } finally {
-      setRegeneratingId(null);
+      setRegeneratingId(null); 
     }
   };
 
@@ -723,20 +675,20 @@ export default function App() {
     setSelectedBackground('');
     setManualBackground('');
     setGeneratedImages([]);
-    setFocusMode(MODEL_FOCUS_MODES[0].value);
+    setFocusMode(MODEL_FOCUS_MODES[0].value); 
     setCommercialScript('');
     setAudioUrl(null);
     setSelectedLanguage(LANGUAGE_OPTIONS[0].code);
     setSelectedVoiceName(VOICE_OPTIONS[0].name);
     setSelectedTone(TONE_OPTIONS[0].value);
-    setShowVideoOptions(false);
+    setShowVideoOptions(false); 
     setShowGenerateModal(false);
     setStoryboardType('COMMERCIAL');
     setIsDetailsConfirmed(false);
     setSelectedDuration('30');
     setSceneCount(8);
   };
-
+  
   const handleBackToSelection = () => {
     playClickSound();
     setAppState('selecting');
@@ -759,44 +711,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans text-black antialiased flex flex-col selection:bg-[#00E5FF] selection:text-black">
-      {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
-
-      {/* API KEY MODAL */}
-      {showApiKeyModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in text-black">
-          <div className="bg-white border-4 border-black max-w-lg w-full neo-shadow relative rounded-[32px] overflow-hidden">
-            <div className="bg-[#FFDE59] border-b-4 border-black p-8 flex flex-col items-center gap-2 relative">
-              {customApiKey && (
-                <button onClick={() => setShowApiKeyModal(false)} className="absolute top-6 right-6 text-black/50 hover:text-black transition-colors"><X size={24} /></button>
-              )}
-              <div className="bg-white p-4 border-4 border-black neo-shadow-sm rounded-2xl mb-2"><Key size={32} /></div>
-              <h2 className="text-3xl font-black uppercase tracking-tight">API Key Setting</h2>
-            </div>
-            <div className="p-10 space-y-8 text-center bg-white">
-              <div className="space-y-4">
-                <p className="text-xs font-black uppercase text-gray-500 tracking-widest leading-none">Langkah 1: Dapatkan API Key Anda</p>
-                <a href="https://s.id/caradapatapikey" target="_blank" rel="noopener noreferrer" className="neo-btn w-full bg-[#00E5FF] border-4 border-black px-6 py-4 text-sm font-black uppercase flex items-center justify-center gap-3 hover:scale-[1.02] transition-all neo-shadow-sm animate-pulse-glow rounded-3xl">
-                  <Lightbulb size={20} className="text-black" />
-                  <span>BACA CARA DAPATKAN API KEY DISINI</span>
-                </a>
-              </div>
-              <div className="space-y-4 pt-2 border-t-2 border-dashed border-gray-200">
-                <p className="text-xs font-black uppercase text-gray-500 tracking-widest leading-none">Langkah 2: Masukkan API Key Dibawah Ini</p>
-                <div className="relative">
-                  <input type={showApiKey ? "text" : "password"} value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} placeholder="Masukkan Gemini API Key Anda Di Sini..." className="w-full p-5 border-4 border-black bg-[#FDFBF7] font-black text-lg focus:bg-white outline-none transition-colors pr-14 rounded-3xl text-center" />
-                  <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="absolute right-6 top-1/2 -translate-y-1/2 text-black hover:scale-110 transition-transform">{showApiKey ? <EyeOff size={24} /> : <Eye size={24} />}</button>
-                </div>
-              </div>
-              <div className="flex flex-col gap-4">
-                <button onClick={async () => { await saveGeminiApiKey(customApiKey); setShowApiKeyModal(false); }} disabled={isSavingApiKey} className="neo-btn bg-[#00E5FF] text-black border-4 border-black py-5 font-black uppercase text-xl neo-shadow rounded-3xl hover:-translate-y-1 transition-transform">{isSavingApiKey ? 'MENYIMPAN...' : 'SIMPAN & AKTIFKAN AKUN'}</button>
-                <button onClick={() => { setCustomApiKey(''); saveGeminiApiKey(''); }} className="text-xs font-black text-gray-400 uppercase hover:text-[#FF5252] transition-colors">Hapus / Reset API Key</button>
-              </div>
-              <div className="flex items-center justify-center gap-2 text-[10px] font-black text-gray-300 uppercase tracking-tighter pt-4">🔒 API Key disimpan hanya di browser lokal Anda (localStorage) dan tidak dikirim ke server manapun.</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {appState !== 'intro' && (
         <header className="px-6 py-4 border-b-[4px] border-black bg-white flex justify-between items-center top-0 z-20 sticky neo-shadow-sm">
           <div className="flex items-center gap-3">
@@ -811,10 +725,8 @@ export default function App() {
             {appState === 'selecting' && generatedImages.length > 0 && <button onClick={handleViewResults} className="neo-btn bg-[#FF90E8] text-black font-black uppercase px-4 py-2 border-2 border-black text-sm">RIWAYAT HASIL</button>}
             <button onClick={handleReset} className={`neo-btn font-black uppercase px-4 py-2 text-sm border-2 border-black ${appState === 'welcome' ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none hover:transform-none" : "bg-white text-gray-500"}`} disabled={appState === 'welcome'}>RESET</button>
             <button onClick={() => { playClickSound(); setShowApiKeyModal(true); }} className="neo-btn bg-[#FFDE59] border-2 border-black p-2 neo-shadow-sm"><Key size={20} /></button>
-            {userData?.role === 'admin' && (
-              <button onClick={() => { playClickSound(); setShowAdminPanel(true); }} className="neo-btn bg-[#00E5FF] border-2 border-black px-4 py-2 font-black text-sm uppercase neo-shadow-sm hidden md:block">ADMIN</button>
-            )}
-            <button onClick={() => { playClickSound(); logout(); }} className="neo-btn bg-black text-white border-2 border-black p-2 neo-shadow-sm"><LogOut size={20} /></button>
+            <button className="neo-btn bg-[#00E5FF] border-2 border-black px-4 py-2 font-black text-sm uppercase neo-shadow-sm hidden md:block">ADMIN</button>
+            <button className="neo-btn bg-black text-white border-2 border-black p-2 neo-shadow-sm"><LogOut size={20} /></button>
           </div>
         </header>
       )}
@@ -827,7 +739,7 @@ export default function App() {
                 <div className="inline-block bg-white border-4 border-black px-6 py-2 transform rotate-2 neo-shadow mb-6">
                   <h2 className="text-xl font-black uppercase tracking-widest">growwithdedy presents</h2>
                 </div>
-                <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-2 uppercase" style={{ textShadow: '6px 6px 0px #fff, 8px 8px 0px #000' }}>MAGIC<br />UGC</h1>
+                <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-2 uppercase" style={{ textShadow: '6px 6px 0px #fff, 8px 8px 0px #000' }}>MAGIC<br/>UGC</h1>
                 <div className="mt-16">
                   <button onClick={handleStartApp} className="neo-btn bg-[#00E5FF] text-black text-2xl font-black uppercase px-16 py-6 border-4 border-black neo-shadow">Mulai Sekarang!</button>
                 </div>
@@ -859,12 +771,12 @@ export default function App() {
                 <div className="mt-8">
                   {generationMode === 'model' ? (
                     <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                      <UploadArea onDrop={onModelDrop} files={modelImage ? [{ file: modelImage, name: modelImage.name }] : []} title="1. UPLOAD MODEL" description="Maks. 1 Foto" onRemoveImage={removeModelImage} />
-                      <UploadArea onDrop={onProductDrop} files={productImages} title="2. UPLOAD PRODUK" description="Maks. 2 Foto" maxFiles={2} onRemoveImage={removeProductImage} />
+                      <UploadArea onDrop={onModelDrop} files={modelImage ? [{file: modelImage, name: modelImage.name}] : []} title="1. UPLOAD MODEL" description="Maks. 1 Foto" onRemoveImage={removeModelImage} />
+                      <UploadArea onDrop={onProductDrop} files={productImages} title="2. UPLOAD PRODUK" description="Maks. 2 Foto" maxFiles={2} onRemoveImage={removeProductImage}/>
                     </div>
                   ) : (
                     <div className="max-w-3xl mx-auto">
-                      <UploadArea onDrop={onProductDrop} files={productImages} title="UPLOAD PRODUK" description="Maks. 2 Foto" maxFiles={2} onRemoveImage={removeProductImage} />
+                      <UploadArea onDrop={onProductDrop} files={productImages} title="UPLOAD PRODUK" description="Maks. 2 Foto" maxFiles={2} onRemoveImage={removeProductImage}/>
                     </div>
                   )}
                   {productImages.length > 0 && (
@@ -1004,7 +916,7 @@ export default function App() {
                         <div className="flex items-center gap-3 mb-8 bg-black text-[#A3E635] p-3 neo-shadow-sm inline-flex"><h3 className="font-black text-xl uppercase">AUDIO PREVIEW</h3></div>
                         {audioUrl ? (
                           <div className="bg-white border-4 border-black p-6 text-center neo-shadow-sm animate-fade-in-up">
-                            <div className="w-16 h-16 bg-[#A3E635] border-4 border-black rounded-full flex items-center justify-center mx-auto mb-4 neo-shadow-sm"><svg className="w-8 h-8 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></div>
+                            <div className="w-16 h-16 bg-[#A3E635] border-4 border-black rounded-full flex items-center justify-center mx-auto mb-4 neo-shadow-sm"><svg className="w-8 h-8 text-black" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
                             <audio controls src={audioUrl} className="w-full h-12 mb-6 border-2 border-black bg-gray-100" />
                             <a href={audioUrl} download="magic-affiliate-gen.wav" className="neo-btn block w-full bg-black text-[#FFDE59] text-sm font-black uppercase py-4 border-4 border-black text-center">DOWNLOAD WAV</a>
                           </div>
@@ -1015,7 +927,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="mt-24 mb-24 text-center">
-                    <div className="inline-block bg-[#00E5FF] border-4 border-black px-6 py-2 mb-8 transform rotate-1 neo-shadow-sm"><h3 className="text-2xl font-black text-black uppercase">LANJUT KE VIDEO AI</h3></div><br />
+                    <div className="inline-block bg-[#00E5FF] border-4 border-black px-6 py-2 mb-8 transform rotate-1 neo-shadow-sm"><h3 className="text-2xl font-black text-black uppercase">LANJUT KE VIDEO AI</h3></div><br/>
                     {!showVideoOptions ? <button onClick={() => setShowVideoOptions(true)} className="neo-btn bg-black text-white px-12 py-5 font-black uppercase border-4 border-black text-xl inline-flex items-center gap-4">BUKA GENERATOR VIDEO <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg></button> : (
                       <div className="flex flex-col md:flex-row justify-center gap-6 animate-fade-in-up">
                         <button onClick={() => window.open('https://www.meta.ai', '_blank')} className="neo-btn bg-[#FF90E8] text-black px-8 py-5 font-black uppercase border-4 border-black inline-flex items-center justify-center gap-3 w-full md:w-auto text-lg">META AI</button>
@@ -1047,9 +959,9 @@ export default function App() {
                     <h4 className="text-sm font-black uppercase mb-3 text-left">Pilih Resolusi</h4>
                     <div className="grid grid-cols-3 gap-4">
                       {RESOLUTION_OPTIONS.map(res => (
-                        <button
-                          key={res.value}
-                          onClick={() => { playClickSound(); setSelectedResolution(res.value); }}
+                        <button 
+                          key={res.value} 
+                          onClick={() => { playClickSound(); setSelectedResolution(res.value); }} 
                           className={`py-4 px-2 text-lg font-black uppercase transition-all border-[4px] border-black ${selectedResolution === res.value ? 'bg-[#A3E635] text-black neo-shadow transform -translate-y-1' : 'bg-white text-black hover:bg-gray-100'}`}
                         >
                           {res.value}
@@ -1083,7 +995,7 @@ export default function App() {
                       <HelpCircle size={20} /> BACA CARA DAPATKAN API KEY DISINI
                     </a>
                   </div>
-
+                  
                   <div className="relative">
                     <div className="absolute inset-x-0 top-1/2 h-[2px] bg-gray-200 border-t-2 border-dashed border-gray-300"></div>
                   </div>
@@ -1091,14 +1003,14 @@ export default function App() {
                   <div className="text-center">
                     <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">LANGKAH 2: MASUKKAN API KEY DIBAWAH INI</p>
                     <div className="relative">
-                      <input
+                      <input 
                         type={showApiKey ? "text" : "password"}
                         value={customApiKey}
                         onChange={(e) => setCustomApiKey(e.target.value)}
                         placeholder="........................................"
                         className="w-full bg-white border-4 border-black rounded-3xl p-5 pr-14 font-bold text-lg focus:outline-none focus:ring-4 focus:ring-[#00E5FF]/20 transition-all"
                       />
-                      <button
+                      <button 
                         onClick={() => setShowApiKey(!showApiKey)}
                         className="absolute right-5 top-1/2 -translate-y-1/2 text-black/40 hover:text-black transition-colors"
                       >
@@ -1107,12 +1019,12 @@ export default function App() {
                     </div>
                   </div>
 
-                  <button
+                  <button 
                     onClick={() => {
                       localStorage.setItem('GEMINI_CUSTOM_API_KEY', customApiKey);
                       setShowApiKeyModal(false);
                       playClickSound();
-                      window.location.reload();
+                      window.location.reload(); 
                     }}
                     className="neo-btn w-full bg-[#00E5FF] border-4 border-black py-5 rounded-3xl font-black text-xl uppercase neo-shadow"
                   >
@@ -1120,7 +1032,7 @@ export default function App() {
                   </button>
 
                   <div className="text-center">
-                    <button
+                    <button 
                       onClick={() => {
                         localStorage.removeItem('GEMINI_CUSTOM_API_KEY');
                         setCustomApiKey('');
@@ -1143,7 +1055,7 @@ export default function App() {
           )}
         </div>
       </main>
-
+      
       <footer className="p-8 border-t-[4px] border-black text-center bg-[#FFDE59] mt-auto flex flex-col items-center justify-center gap-6">
         <div className="flex flex-col md:flex-row items-center justify-center gap-2">
           <p className="text-sm text-black font-black uppercase tracking-widest">2026 Magic UGC Generator</p>
@@ -1151,26 +1063,26 @@ export default function App() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <a
-            href="https://instagram.com/growwithdedy"
-            target="_blank"
-            rel="noopener noreferrer"
+          <a 
+            href="https://instagram.com/growwithdedy" 
+            target="_blank" 
+            rel="noopener noreferrer" 
             className="flex items-center gap-2 bg-white border-2 border-black px-4 py-2 font-black text-xs uppercase neo-shadow-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all"
           >
             <Instagram size={16} /> Instagram
           </a>
-          <a
-            href="https://threads.net/@growwithdedy"
-            target="_blank"
-            rel="noopener noreferrer"
+          <a 
+            href="https://threads.net/@growwithdedy" 
+            target="_blank" 
+            rel="noopener noreferrer" 
             className="flex items-center gap-2 bg-white border-2 border-black px-4 py-2 font-black text-xs uppercase neo-shadow-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all"
           >
             <span className="text-lg leading-none">@</span> Threads
           </a>
-          <a
-            href="https://lynk.id/growwithdedy"
-            target="_blank"
-            rel="noopener noreferrer"
+          <a 
+            href="https://lynk.id/growwithdedy" 
+            target="_blank" 
+            rel="noopener noreferrer" 
             className="flex items-center gap-2 bg-[#00E5FF] border-2 border-black px-4 py-2 font-black text-xs uppercase neo-shadow-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all"
           >
             <ExternalLink size={16} /> Tools Lainnya
