@@ -10,7 +10,7 @@ export const MODELS = {
  * Creates a new GoogleGenAI instance using the provided or stored API key.
  */
 export const getAI = (apiKey?: string) => {
-  const finalKey = apiKey || localStorage.getItem('gemini_api_key') || "";
+  const finalKey = apiKey || localStorage.getItem('GEMINI_CUSTOM_API_KEY') || "";
   return new GoogleGenAI({ apiKey: finalKey });
 };
 

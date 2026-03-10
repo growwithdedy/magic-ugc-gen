@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Instagram, ExternalLink, Key, Shield, LogOut, Eye, EyeOff, HelpCircle, X } from 'lucide-react';
+import { Instagram, ExternalLink, Key, Eye, EyeOff, Shield, LogOut, HelpCircle, X } from 'lucide-react';
 import {
   VOICE_OPTIONS,
   LANGUAGE_OPTIONS,
@@ -36,10 +36,10 @@ import { MODELS, getAI } from './services/geminiService';
 import { useAuth } from './contexts/AuthContext';
 import { LoginScreen } from './components/Auth/LoginScreen';
 import { WaitingApprovalScreen } from './components/Auth/WaitingApprovalScreen';
-import AdminPanel from './components/Admin/AdminPanel';
+import { AdminPanel } from './components/Admin/AdminPanel';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from './lib/firebase';
-import { Key, Eye, EyeOff, Lightbulb } from 'lucide-react';
+import { Lightbulb } from 'lucide-react';
 
 export default function App() {
   // State Management
@@ -62,6 +62,7 @@ export default function App() {
   const [selectedResolution, setSelectedResolution] = useState<"1K" | "2K" | "4K">('1K');
   const [sceneCount, setSceneCount] = useState(8);
   const [manualBackground, setManualBackground] = useState('');
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [customApiKey, setCustomApiKey] = useState(localStorage.getItem('GEMINI_CUSTOM_API_KEY') || '');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -135,10 +136,10 @@ export default function App() {
         const voiceName = "Puck";
 
         const genAI = getAI(customApiKey);
-        const model = genAI.getGenerativeModel({ model: MODELS.TTS });
-        const response = await model.generateContent({
+        const response = await genAI.models.generateContent({
+          model: MODELS.TTS,
           contents: [{ parts: [{ text: text }] }],
-          generationConfig: {
+          config: {
             responseModalities: ["AUDIO"],
             speechConfig: {
               voiceConfig: {
@@ -150,7 +151,7 @@ export default function App() {
           }
         });
 
-        const pcmData = response.response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        const pcmData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
 
         if (pcmData) {
           const wavUrl = pcmToWav(pcmData);
@@ -208,11 +209,11 @@ export default function App() {
       const prompt = "Identifikasi produk dalam gambar ini. Berikan nama yang singkat, detail, dan deskriptif dalam Bahasa Indonesia (maksimal 4 kata, contoh: 'Kemeja Flanel Coklat', 'Botol Serum Vitamin C'). Jawab HANYA dengan nama produk.";
 
       const genAI = getAI(customApiKey);
-      const model = genAI.getGenerativeModel({ model: MODELS.TEXT });
-      const response = await model.generateContent({
+      const response = await genAI.models.generateContent({
+        model: MODELS.TEXT,
         contents: [{ parts: [{ text: prompt }, imagePart] }]
       });
-      return response.response.text()?.trim() || file.name;
+      return response.text?.trim() || file.name;
     } catch (error) {
       console.error("Product detection failed for one image:", error);
       return file.name;
@@ -352,7 +353,8 @@ export default function App() {
       
       Kembalikan HANYA dalam format JSON yang valid dengan kunci "backgrounds" (array of strings).`;
 
-      const response = await ai.models.generateContent({
+      const genAI = getAI(customApiKey);
+      const response = await genAI.models.generateContent({
         model: MODELS.TEXT,
         contents: [{ parts: [{ text: prompt }, ...imageParts] }],
         config: {
@@ -404,7 +406,8 @@ export default function App() {
       Bahasa: ${languageName}.
       `;
 
-      const response = await ai.models.generateContent({
+      const genAI = getAI(customApiKey);
+      const response = await genAI.models.generateContent({
         model: MODELS.TEXT,
         contents: [{ parts: [{ text: prompt }] }]
       });
@@ -435,7 +438,8 @@ export default function App() {
     const finalScript = tonePrefix + commercialScript;
 
     try {
-      const response = await ai.models.generateContent({
+      const genAI = getAI(customApiKey);
+      const response = await genAI.models.generateContent({
         model: MODELS.TTS,
         contents: [{ parts: [{ text: finalScript }] }],
         config: {
@@ -488,7 +492,8 @@ export default function App() {
 
       const systemPrompt = `You are an expert Creative Director. Your task: ${contextPrompt}. Return JSON with "shots" array of ${count} objects: {name, prompt, videoPrompt, script}.`;
 
-      const response = await ai.models.generateContent({
+      const genAI = getAI(customApiKey);
+      const response = await genAI.models.generateContent({
         model: MODELS.TEXT,
         contents: [{ parts: [{ text: `Generate ${count} sequential storyboard shots.` }, ...imageParts] }],
         config: {
@@ -586,8 +591,8 @@ export default function App() {
           ${generationMode === 'model' ? REALISM_PROMPT : ''}
         `;
 
-        const aiInstance = getAI();
-        const response = await aiInstance.models.generateContent({
+        const genAI = getAI(customApiKey);
+        const response = await genAI.models.generateContent({
           model: MODELS.IMAGE,
           contents: [{ parts: [{ text: prompt }, ...allImageParts] }],
           config: {
